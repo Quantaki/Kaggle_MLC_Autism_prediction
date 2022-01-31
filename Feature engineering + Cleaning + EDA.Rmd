@@ -1,0 +1,228 @@
+---
+title: 'Autism prediction EDA'
+date: '`r Sys.Date()`'
+output:
+  html_document:
+    number_sections: true
+    fig_caption: true
+    toc: true
+    fig_width: 7
+    fig_height: 4.5
+    theme: cosmo
+    highlight: tango
+    code_folding: hide
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo=TRUE, error=FALSE)
+
+knitr::opts_chunk$set(out.width="100%", fig.height = 6, split=FALSE, fig.align = 'default')
+options(dplyr.summarise.inform = FALSE)
+```
+
+# Import libraries and data 
+
+We load a range of libraries for general data wrangling and general visualisation. Train and test data are imported.
+
+```{r, message= FALSE, warning= FALSE}
+
+library(tidyverse)
+library(skimr)
+library(waldo)
+
+# specific for na
+library(naniar)
+# corr
+library(corrplot)
+# for ggplot
+library(patchwork)
+library(scales)
+
+# data
+autism_train <- read_csv("train.csv")
+autism_test <- read_csv("test.csv")
+```
+
+```{r, message= FALSE, warning= FALSE, echo=FALSE}
+train <- read_csv("train.csv")
+```
+
+
+# Get a look to data structure  
+
+```{r}
+autism_train %>% glimpse()
+
+```
+
+> Small dataset with 800 samples.
+
+> Significant number of predictors (22).
+
+> A first glimpse suggest that data are somehow unstructured and need some works..
+ 
+
+## Let's look in more details the structure
+
+```{r}
+autism_train %>% skim()
+
+```
+
+> No missing values. 
+
+> Eight (08) categorical feature which four (04) are binary. 
+
+> forteen (14) features are recorded as numercial values, which of them are the ten (10) autism scores binary features.
+
+> We notice that age of the patient is recorded twice, a numirical type and categorical type, the categorical one has only (01) unique value. We suggest to remove this feature due to incoherence.  
+
+> the relation feature has a value recorded "?" which is probably a missing value.  
+
+# Data cleaning 
+
+We can already proceed to some transformation based on the data structure exploration. Throughout this notebook we can comeback to it for further augmentation. 
+
+## 1 - Names change  
+
+We suggest to assign more significant names to some features based on  the description provided by the competition. 
+
+```{r}
+autism_train <- autism_train %>% 
+  rename(
+    genetic_root = "austim",
+    country = "contry_of_res",
+    previous_AQ_test = "used_app_before",
+    aq_test_score = "result",
+    autism_diagnose = "Class/ASD"
+         )
+
+autism_test <- autism_test %>% 
+  rename(
+    genetic_root = "austim",
+    country = "contry_of_res",
+    previous_AQ_test = "used_app_before",
+    aq_test_score = "result"
+    )
+
+compare(train, autism_train)
+```
+
+```{r, message= FALSE, warning= FALSE, echo=FALSE}
+
+train <- train %>% 
+  rename(
+    genetic_root = "austim",
+    country = "contry_of_res",
+    previous_AQ_test = "used_app_before",
+    aq_test_score = "result",
+    autism_diagnose = "Class/ASD"
+         )
+
+```
+
+
+## 2 - Types change 
+
+We proceed to change some binary variables "jaundice", "genetic_root" and "previous_AQ_test", to logical ones. 
+
+```{r}
+
+autism_train <- autism_train %>% 
+  mutate(across(c("jaundice", "genetic_root", "previous_AQ_test"), 
+                function(x) ifelse(x == "yes", TRUE, FALSE)))
+
+autism_test <- autism_test %>% 
+  mutate(across(c("jaundice", "genetic_root", "previous_AQ_test"), 
+                function(x) ifelse(x == "yes", TRUE, FALSE)))
+
+
+compare(train, autism_train)
+  
+```
+
+```{r, message= FALSE, warning= FALSE, echo=FALSE}
+
+train <- train %>% 
+  mutate(across(c("jaundice", "genetic_root", "previous_AQ_test"), 
+                function(x) ifelse(x == "yes", TRUE, FALSE)))
+
+```
+
+
+## 3 - Values change 
+
+This step concern only the relation feature which has some values "?", this indicate probalby a unknown value, where the relationship of the patient isn't recorded. We choose to change the "?" to "unknown", and we suggest to look closely to this values as an missing value, for further imputation hypothesis... 
+
+```{r}
+autism_train <- autism_train %>% 
+  mutate(relation = ifelse(relation == "?", "unknown", relation))
+
+autism_test <- autism_test%>% 
+  mutate(relation = ifelse(relation == "?", "unknown", relation))
+
+compare(train, autism_train, max_diffs = 2)
+```
+
+```{r, message= FALSE, warning= FALSE, echo=FALSE}
+
+train <- train %>% 
+  mutate(relation = ifelse(relation == "?", "unknown", relation))
+
+```
+
+## 4- feature remove
+
+As suggested above there is no need (for now) to having two different types of the age variable, we proceed to remove the non numerical one. 
+
+```{r}
+autism_train <- autism_train %>% 
+  mutate(age_desc = NULL)
+
+autism_test <- autism_test %>% 
+  mutate(age_desc = NULL)
+
+compare(train, autism_train)
+
+```
+
+```{r, message= FALSE, warning= FALSE, echo=FALSE}
+
+train <- train %>% 
+  mutate(age_desc = NULL)
+
+```
+
+## 5 - Basic feature engineering 
+
+Create a new variable of total screening autisme test that was passed. 
+
+```{r}
+
+autism_train <- autism_train %>% 
+  mutate(tot_AQ_score = rowSums(across(A1_Score:A10_Score)))
+
+autism_test <- autism_test %>% 
+  mutate(tot_AQ_score = rowSums(across(A1_Score:A10_Score)))
+
+compare(train, autism_train)
+
+```
+
+# New clean data ready for analysis
+
+here is new cleaned data after renaming, feature removing, feature engineering...
+
+```{r}
+autism_train %>% glimpse()
+
+write_csv(autism_train, "autism_train.csv")
+write_csv(autism_test, "autism_test.csv")
+```
+
+
+# Now we can start some proper EDA
+
+to be continued... 
+
+
